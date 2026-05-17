@@ -76,7 +76,7 @@ static int read_imu_file(const char *filepath,
 
 int main(void)
 {
-    const char *dirs[]   = { "../../AccData/walk", "../../AccData/run", "../../AccData/others" };
+    const char *dirs[]   = { "../AccData/walk", "../AccData/run", "../AccData/others" };
     const char *names[]  = { "Walking", "Running", "Non-walking" };
     int total_files = 0, total_truth = 0;
     float sum_err = 0.0f, sum_mape = 0.0f;

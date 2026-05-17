@@ -1,1 +1,5 @@
 AGENTS.md
+VeriHealthi_QEMU_SDK_v3.6/qemu/Release/
+**/build
+**/__pycache__/
+**/*.pyc
