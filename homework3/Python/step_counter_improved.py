@@ -11,8 +11,11 @@ GYR_LOW_ACTIVE = 600
 GYR_HIGH_ACTIVE = 1200
 GYR_ACC_RATIO = 5.0
 ACC_MIN_STD = 120
-PEAK_AMP_MIN = 200
+PEAK_AMP_MIN = 700
 GYR_CV_SOFT = 0.75
+GYR_CV_SOFT_RUN = 0.85
+GYR_CV_HARD = 0.78
+PEAK_AMP_HARD = 2500
 RAW_PEAK_DENSITY_MAX = 0.12
 
 INTERVALS = {'walk': (15, 60), 'brisk': (13, 45), 'run': (10, 35)}
@@ -147,13 +150,21 @@ def step_counter(acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z):
         return 0
 
     peak_ampl = np.mean([acc_filt[p] for p in peaks])
-    if peak_ampl < PEAK_AMP_MIN and gyr_mean < GYR_LOW_ACTIVE + 200:
+    if peak_ampl < PEAK_AMP_MIN:
         return 0
 
-    if gyr_mean < GYR_HIGH_ACTIVE and gyr_cv > GYR_CV_SOFT:
-        n_steps = int(n_steps * min(1.0, GYR_CV_SOFT / gyr_cv))
+    if gyr_mean < GYR_HIGH_ACTIVE:
+        cv_threshold = GYR_CV_SOFT
+    else:
+        cv_threshold = GYR_CV_SOFT_RUN
+    if gyr_cv > cv_threshold:
+        ratio = min(1.0, cv_threshold / gyr_cv)
+        n_steps = int(n_steps * ratio * ratio)
         if n_steps == 0:
             return 0
+
+    if gyr_cv > GYR_CV_HARD and peak_ampl < PEAK_AMP_HARD:
+        return 0
 
     if n_steps >= 3:
         intervals = np.diff(peaks)

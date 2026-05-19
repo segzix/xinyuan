@@ -37,10 +37,13 @@
 #define GYR_HIGH_ACTIVE 1200.0f /* high activity (running) */
 #define GYR_ACC_RATIO   5.0f    /* gyro/acc ratio for non-walking */
 #define ACC_MIN_STD     120.0f  /* min acc std for walking */
-#define PEAK_AMP_MIN    200.0f  /* min peak amplitude */
+#define PEAK_AMP_MIN    700.0f  /* min peak amplitude */
 
-/* Gyro regularity threshold */
-#define GYR_CV_SOFT     0.75f   /* gyro CV soft penalty threshold */
+/* Gyro regularity thresholds */
+#define GYR_CV_SOFT     0.75f   /* gyro CV soft penalty threshold (walk/brisk) */
+#define GYR_CV_SOFT_RUN 0.85f   /* gyro CV soft penalty threshold (run) */
+#define GYR_CV_HARD     0.78f   /* gyro CV hard rejection threshold */
+#define PEAK_AMP_HARD   2500.0f /* peak amplitude threshold for hard CV gate */
 
 /* Raw peak density: max raw peaks per sample for noise rejection */
 #define RAW_PEAK_DENSITY_MAX 0.12f
@@ -313,6 +316,7 @@ AlgoError step_counter_improved_process(ImuInput *input, uint16_t *steps)
     float gyr_mean, gyr_std, gyr_cv;
     float acc_std;
     float acc_raw_std;
+    float peak_ampl;
     uint16_t raw_peak_cnt;
     float raw_density;
     uint16_t i;
@@ -429,28 +433,40 @@ AlgoError step_counter_improved_process(ImuInput *input, uint16_t *steps)
 
     {
         float sum_ampl = 0.0f;
-        float peak_ampl;
         for (i = 0; i < peak_cnt; i++) {
             sum_ampl += acc_filt_buf[peak_idx[i]];
         }
         peak_ampl = sum_ampl / (float)peak_cnt;
+    }
 
-        if (peak_ampl < PEAK_AMP_MIN && gyr_mean < GYR_LOW_ACTIVE + 200.0f) {
-            *steps = 0;
-            return ALGO_NORMAL;
+    if (peak_ampl < PEAK_AMP_MIN) {
+        *steps = 0;
+        return ALGO_NORMAL;
+    }
+
+    /* ---- 10. Gyro-CV Soft Penalty (all activity levels) ----
+     * Walk/brisk tolerate less irregularity than run. Squared penalty
+     * amplifies the effect when gyro pattern is highly irregular. */
+
+    {
+        float cv_threshold = (gyr_mean < GYR_HIGH_ACTIVE)
+                              ? GYR_CV_SOFT : GYR_CV_SOFT_RUN;
+        if (gyr_cv > cv_threshold) {
+            float ratio = cv_threshold / gyr_cv;
+            *steps = (uint16_t)((float)(*steps) * ratio * ratio);
+            if (*steps == 0) {
+                return ALGO_NORMAL;
+            }
         }
     }
 
-    /* ---- 10. Gyro-CV Soft Penalty (walk/medium only) ---- */
+    /* ---- 10b. Gyro-CV Hard Gate ----
+     * High gyro irregularity combined with moderate peak amplitude
+     * indicates non-walking motion (hand shaking, waving, etc.) */
 
-    if (gyr_mean < GYR_HIGH_ACTIVE && gyr_cv > GYR_CV_SOFT) {
-        float ratio = GYR_CV_SOFT / gyr_cv;
-        if (ratio < 0.0f) ratio = 0.0f;
-        if (ratio > 1.0f) ratio = 1.0f;
-        *steps = (uint16_t)((float)(*steps) * ratio);
-        if (*steps == 0) {
-            return ALGO_NORMAL;
-        }
+    if (gyr_cv > GYR_CV_HARD && peak_ampl < PEAK_AMP_HARD) {
+        *steps = 0;
+        return ALGO_NORMAL;
     }
 
     /* ---- 11. Soft Periodicity Penalty ---- */
