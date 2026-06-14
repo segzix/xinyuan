@@ -1,0 +1,49 @@
+!SESSION 2026-06-14 13:50:43.611 -----------------------------------------------
+eclipse.buildId=4.35.0.20250306-0811
+java.version=21.0.6
+java.vendor=Eclipse Adoptium
+BootLoader constants: OS=linux, ARCH=x86_64, WS=gtk, NL=en_US
+Framework arguments:  -product org.eclipse.epp.package.cpp.product
+Command-line arguments:  -os linux -ws gtk -arch x86_64 -product org.eclipse.epp.package.cpp.product
+
+!ENTRY org.eclipse.ui 2 0 2026-06-14 13:51:08.579
+!MESSAGE Warnings while parsing the commands from the 'org.eclipse.ui.commands' and 'org.eclipse.ui.actionDefinitions' extension points.
+!SUBENTRY 1 org.eclipse.ui 2 0 2026-06-14 13:51:08.579
+!MESSAGE Commands should really have a category: plug-in='org.riscvstudio.ide', id='org.riscvstudio.ide.commands.Nuclei_System_Technology_Homepage', categoryId='org.riscvstudio.ide.rvtools.category'
+!SUBENTRY 1 org.eclipse.ui 2 0 2026-06-14 13:51:08.579
+!MESSAGE Commands should really have a category: plug-in='org.riscvstudio.ide', id='org.riscvstudio.ide.commands.Nuclei_Studio_User_Guide', categoryId='org.riscvstudio.ide.rvtools.category'
+!SUBENTRY 1 org.eclipse.ui 2 0 2026-06-14 13:51:08.579
+!MESSAGE Commands should really have a category: plug-in='org.riscvstudio.ide', id='org.riscvstudio.ide.commands.Nuclei_SDK_Documentation', categoryId='org.riscvstudio.ide.rvtools.category'
+!SUBENTRY 1 org.eclipse.ui 2 0 2026-06-14 13:51:08.579
+!MESSAGE Commands should really have a category: plug-in='org.riscvstudio.ide', id='org.riscvstudio.ide.commands.Nuclei_Documentation', categoryId='org.riscvstudio.ide.rvtools.category'
+!SUBENTRY 1 org.eclipse.ui 2 0 2026-06-14 13:51:08.579
+!MESSAGE Commands should really have a category: plug-in='org.riscvstudio.ide', id='org.riscvstudio.ide.commands.Nuclei_Studio_FAQ', categoryId='org.riscvstudio.ide.rvtools.category'
+
+!ENTRY org.eclipse.ui 2 0 2026-06-14 13:51:08.786
+!MESSAGE Warnings while parsing the commands from the 'org.eclipse.ui.commands' and 'org.eclipse.ui.actionDefinitions' extension points.
+!SUBENTRY 1 org.eclipse.ui 2 0 2026-06-14 13:51:08.786
+!MESSAGE Commands should really have a category: plug-in='org.riscvstudio.ide', id='org.riscvstudio.ide.commands.Nuclei_System_Technology_Homepage', categoryId='org.riscvstudio.ide.rvtools.category'
+!SUBENTRY 1 org.eclipse.ui 2 0 2026-06-14 13:51:08.786
+!MESSAGE Commands should really have a category: plug-in='org.riscvstudio.ide', id='org.riscvstudio.ide.commands.Nuclei_Studio_User_Guide', categoryId='org.riscvstudio.ide.rvtools.category'
+!SUBENTRY 1 org.eclipse.ui 2 0 2026-06-14 13:51:08.786
+!MESSAGE Commands should really have a category: plug-in='org.riscvstudio.ide', id='org.riscvstudio.ide.commands.Nuclei_SDK_Documentation', categoryId='org.riscvstudio.ide.rvtools.category'
+!SUBENTRY 1 org.eclipse.ui 2 0 2026-06-14 13:51:08.786
+!MESSAGE Commands should really have a category: plug-in='org.riscvstudio.ide', id='org.riscvstudio.ide.commands.Nuclei_Documentation', categoryId='org.riscvstudio.ide.rvtools.category'
+!SUBENTRY 1 org.eclipse.ui 2 0 2026-06-14 13:51:08.786
+!MESSAGE Commands should really have a category: plug-in='org.riscvstudio.ide', id='org.riscvstudio.ide.commands.Nuclei_Studio_FAQ', categoryId='org.riscvstudio.ide.rvtools.category'
+
+!ENTRY org.eclipse.ui.ide 4 0 2026-06-14 13:52:22.109
+!MESSAGE Could not import project located at /home/segzix/Projects/xinyuan/imu_gesture
+!STACK 0
+org.eclipse.ui.internal.wizards.datatransfer.CouldNotImportProjectException: Could not import project located at /home/segzix/Projects/xinyuan/imu_gesture
+	at org.eclipse.ui.internal.wizards.datatransfer.SmartImportJob.toExistingOrNewProject(SmartImportJob.java:555)
+	at org.eclipse.ui.internal.wizards.datatransfer.SmartImportJob.run(SmartImportJob.java:246)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:63)
+Caused by: org.eclipse.core.internal.resources.ResourceException: Invalid project description for project 'imu_gesture' at 'file:/home/segzix/Projects/xinyuan/imu_gesture' 
+	at org.eclipse.core.internal.resources.Project.checkDescription(Project.java:211)
+	at org.eclipse.core.internal.resources.Project.assertCreateRequirements(Project.java:95)
+	at org.eclipse.core.internal.resources.Project.create(Project.java:305)
+	at org.eclipse.core.internal.resources.Project.create(Project.java:291)
+	at org.eclipse.ui.internal.wizards.datatransfer.SmartImportJob.createOrImportProject(SmartImportJob.java:594)
+	at org.eclipse.ui.internal.wizards.datatransfer.SmartImportJob.toExistingOrNewProject(SmartImportJob.java:542)
+	... 2 more
