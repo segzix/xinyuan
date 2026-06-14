@@ -5,7 +5,7 @@
 ## 目录结构
 
 ```text
-homework4_imu_gesture/
+imu_gesture/
 ├── embedded/                 # VeriHealthi SDK 接入骨架
 │   ├── imu_app_skeleton.c    # imu_task/algo_task/Event/ISR 约束示例
 │   └── qemu_const_runner.c   # QEMU SDK const 数据入口，不依赖 fopen
@@ -25,6 +25,10 @@ homework4_imu_gesture/
 │   ├── gesture_algo.c
 │   ├── imu_dataset_runner.c
 │   └── imu_buffer.c
+├── sim/                      # Python 仿真脚本
+│   ├── gesture_algo_sim.py   # Python 复刻当前 C 规则算法
+│   └── simulate_gestures.py  # 合成 IMU 数据生成器
+├── NUCLEI_STUDIO_EVAL_GUIDE.md
 └── Makefile                  # 主机侧最小验证构建
 ```
 
@@ -80,13 +84,51 @@ homework4_imu_gesture/
 - 算法内部不打印，`other` 不输出，避免嵌入式和比赛输出格式被算法实现细节污染。
 - 当前算法是规则基线，主要用于验证工程数据流和输出格式，不代表最终高准确率模型。
 
-## 基本运行命令
+## 推荐运行步骤
 
-下面所有命令都假设当前工作目录已经是 `homework4_imu_gesture`：
+下面所有命令都假设当前工作目录已经是 `imu_gesture`：
 
 ```bash
-cd /home/segzix/Projects/xinyuan/homework4_imu_gesture
+cd /home/segzix/Projects/xinyuan/imu_gesture
 ```
+
+先查看 Makefile 内置命令说明：
+
+```bash
+make help
+```
+
+最快 smoke test 是生成 Python 合成数据、编译 host 程序并检查期望标签：
+
+```bash
+make sim-check
+```
+
+如果 `make sim-check` 通过，再跑正式数据集汇总评估：
+
+```bash
+make eval
+```
+
+如果要确认 Python 版算法仿真和当前 C host 输出一致，运行：
+
+```bash
+make py-algo-compare-sim
+```
+
+需要查看每个正式数据文件的识别明细时，运行：
+
+```bash
+make run-all
+```
+
+运行单个 IMU 文本文件时，使用：
+
+```bash
+make run DATA=../VeriHealthi_IMU_Dataset/pinch/IMU_pinch_right_2026_05_29_14_20_10_ID5.txt
+```
+
+## 主机验证命令
 
 编译 host 验证程序：
 
@@ -104,12 +146,6 @@ make -B
 
 ```bash
 find ../VeriHealthi_IMU_Dataset -type f -name '*.txt' | head
-```
-
-运行单个 IMU 文本文件：
-
-```bash
-make run DATA=../VeriHealthi_IMU_Dataset/pinch/IMU_pinch_right_2026_05_29_14_20_10_ID5.txt
 ```
 
 一条命令编译并跑完整正式手势数据集：
@@ -152,11 +188,111 @@ make run-all DATA_DIR=../VeriHealthi_Algorithm_Homework_Code_Data/AccData
 
 旧 `AccData` 只有 `walk/run/others` 标签，不能完整评估四类手势准确率；它更适合用来观察非手势数据是否误触发 `pinch/clench/up/down`。
 
-如果你的数据是直接放在 `homework4_imu_gesture/AccData/*.txt`，使用这个批量命令：
+如果你的数据是直接放在 `imu_gesture/AccData/*.txt`，使用这个批量命令：
 
 ```bash
 make run-all DATA_DIR=AccData
 ```
+
+## Python 仿真数据
+
+`sim/simulate_gestures.py` 可以生成确定性的 host 格式 IMU 文本，不依赖第三方 Python 包。它用于快速闭环检查 C 规则算法和主机解析链路，不替代真实数据集评估。
+
+推荐先跑：
+
+```bash
+make sim-check
+```
+
+这条命令会自动完成三件事：
+
+- 编译 `build/imu_gesture_host`。
+- 生成 `build/simulated_dataset/{pinch,clench,up,down,others}/sim_*.txt`。
+- 用 C host runner 跑合成数据，并检查 `pinch/clench/up/down` 输出匹配目录标签，`others` 不输出手势。
+
+生成 `pinch`、`clench`、`up`、`down`、`others` 五类合成样本：
+
+```bash
+make sim
+```
+
+默认输出目录是：
+
+```text
+build/simulated_dataset
+```
+
+生成后直接运行 host 程序查看输出：
+
+```bash
+make sim-run
+```
+
+生成并检查期望结果，适合作为快速 smoke test：
+
+```bash
+make sim-check
+```
+
+如果要复用现有分类统计逻辑：
+
+```bash
+make eval DATA_DIR=build/simulated_dataset
+```
+
+## Python 复刻 C 算法
+
+`sim/gesture_algo_sim.py` 用 Python 复刻当前 `src/gesture_algo.c` 的识别路径。它不生成数据，而是读取同样的 IMU 文本文件，按 host runner 的方式组装样本、按 64 帧分块、维护 100 帧滑动窗口，并复用当前 C 代码中的阈值、冷却和评估间隔规则。
+
+它的目标是仿真“现在这版 C 代码怎么判断”，方便调试阈值和对照输出；它不是新的识别算法，也不是替代真实数据集评估。
+
+单独运行 Python 版算法仿真：
+
+```bash
+make py-algo DATA=../VeriHealthi_IMU_Dataset/pinch/IMU_pinch_right_2026_05_29_14_20_10_ID5.txt
+```
+
+对比同一个文件的 Python 输出和 C host 输出：
+
+```bash
+make py-algo-compare DATA=../VeriHealthi_IMU_Dataset/pinch/IMU_pinch_right_2026_05_29_14_20_10_ID5.txt
+```
+
+生成合成数据后，对比 Python 算法仿真和 C host 在合成数据上的输出：
+
+```bash
+make py-algo-compare-sim
+```
+
+对比 Python 算法仿真和 C host 在正式数据集上的输出：
+
+```bash
+make py-algo-compare-all
+```
+
+`make py-algo-compare-all` 默认打印汇总和按目录分类的 Python 输出事件数，并在出现 mismatch 时展开对应文件的 Python/host 输出。正常通过时会看到类似：
+
+```text
+compare summary:
+  dataset=/home/segzix/Projects/xinyuan/imu_gesture/../VeriHealthi_IMU_Dataset
+  files=361 matched=361 mismatches=0
+  by directory:
+    pinch   files=77 no_output_files=2 py_outputs: pinch=1990 clench=3 up=0 down=0
+    clench  files=77 no_output_files=2 py_outputs: pinch=203 clench=1721 up=0 down=1
+    up      files=75 no_output_files=0 py_outputs: pinch=18 clench=18 up=1632 down=1535
+    down    files=75 no_output_files=0 py_outputs: pinch=18 clench=18 up=1632 down=1535
+    others  files=57 no_output_files=43 py_outputs: pinch=2 clench=8 up=12 down=8
+```
+
+这里的 `py_outputs` 是 Python 复刻算法输出的事件数；当 `mismatches=0` 时，它也和 C host 输出事件数一致。它用于检查 Python/C 行为一致性，不等同于准确率评估。
+
+如果需要查看每个文件的详细 `compare: ok` 输出，运行：
+
+```bash
+make py-algo-compare-all-verbose
+```
+
+如果出现 `compare: mismatch`，优先检查 `src/gesture_algo.c` 的阈值、窗口逻辑或时间戳流程是否已经改动，但 Python 版尚未同步。
 
 清理主机构建产物：
 

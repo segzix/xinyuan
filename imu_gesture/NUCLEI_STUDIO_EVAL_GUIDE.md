@@ -10,6 +10,8 @@ NucleiStudio 在这里主要做三件事：
 
 - 把 `/home/segzix/Projects/xinyuan/imu_gesture` 登记为 IDE 项目。
 - 调用项目根目录的 `Makefile` 编译 `build/imu_gesture_host`。
+- 通过 External Tools 调用 `make sim-check` 跑 Python 仿真 smoke test。
+- 通过 External Tools 调用 `make py-algo-compare-sim` 对比 Python 版 C 算法仿真和 C host 输出。
 - 通过 External Tools 调用 `make eval` 跑完整数据集评估。
 
 注意区分：
@@ -152,9 +154,121 @@ make: Nothing to be done for 'all'.
 
 这不是错误，表示程序已经编译过，当前源码没有变化。
 
+## 配置 Python 仿真检查
+
+Python 仿真用于快速确认主机解析、C 规则算法和输出格式能闭环运行。它会生成合成数据到：
+
+```text
+/home/segzix/Projects/xinyuan/imu_gesture/build/simulated_dataset
+```
+
+推荐先配置一个 External Tools 入口执行 `make sim-check`。
+
+1. 打开：
+
+```text
+Run -> External Tools -> External Tools Configurations...
+```
+
+2. 左侧选择：
+
+```text
+Program
+```
+
+然后点击左上角新建按钮。
+
+3. 填写：
+
+```text
+Name: imu_gesture_sim_check
+Location: /usr/bin/make
+Working Directory: /home/segzix/Projects/xinyuan/imu_gesture
+Arguments: -C /home/segzix/Projects/xinyuan/imu_gesture sim-check
+```
+
+4. 点击：
+
+```text
+Apply -> Run
+```
+
+正确运行时，Console 中应该看到 `generated 5 simulated files`，并显示每个合成文件的 host 输出。`others` 文件没有 `pinch/clench/up/down` 输出是正确结果。
+
+之后再次运行仿真检查时，使用：
+
+```text
+Run -> External Tools -> imu_gesture_sim_check
+```
+
+## 配置 Python/C 算法仿真对比
+
+`make py-algo-compare-sim` 会先生成合成 IMU 数据，再用 Python 复刻版 `gesture_algo_sim.py` 和 C host runner 分别处理同一批文件，检查两边输出是否一致。它用于确认 Python 仿真确实贴着当前 C 算法逻辑。
+
+1. 打开：
+
+```text
+Run -> External Tools -> External Tools Configurations...
+```
+
+2. 左侧选择：
+
+```text
+Program
+```
+
+然后点击左上角新建按钮。
+
+3. 填写：
+
+```text
+Name: imu_gesture_py_algo_compare_sim
+Location: /usr/bin/make
+Working Directory: /home/segzix/Projects/xinyuan/imu_gesture
+Arguments: -C /home/segzix/Projects/xinyuan/imu_gesture py-algo-compare-sim
+```
+
+4. 点击：
+
+```text
+Apply -> Run
+```
+
+正确运行时，Console 中每个合成文件都应该显示 `compare: ok`。
+
+正式数据集全量对比使用：
+
+```bash
+cd /home/segzix/Projects/xinyuan/imu_gesture
+make py-algo-compare-all
+```
+
+这条命令默认打印汇总和按目录分类的 Python 输出事件数，并在出现 mismatch 时展开对应文件。正常通过时会看到类似：
+
+```text
+compare summary:
+  dataset=/home/segzix/Projects/xinyuan/imu_gesture/../VeriHealthi_IMU_Dataset
+  files=361 matched=361 mismatches=0
+  by directory:
+    pinch   files=77 no_output_files=2 py_outputs: pinch=1990 clench=3 up=0 down=0
+    clench  files=77 no_output_files=2 py_outputs: pinch=203 clench=1721 up=0 down=1
+    up      files=75 no_output_files=0 py_outputs: pinch=18 clench=18 up=1632 down=1535
+    down    files=75 no_output_files=0 py_outputs: pinch=18 clench=18 up=1632 down=1535
+    others  files=57 no_output_files=43 py_outputs: pinch=2 clench=8 up=12 down=8
+```
+
+这里的 `py_outputs` 是 Python 复刻算法输出的事件数；当 `mismatches=0` 时，它也和 C host 输出事件数一致。它用于检查 Python/C 行为一致性，不等同于准确率评估。
+
+如果需要逐文件明细，使用：
+
+```bash
+cd /home/segzix/Projects/xinyuan/imu_gesture
+make py-algo-compare-all-verbose
+```
+
 ## 配置全量评估
 
-全量评估不要点 `Build Project`，而是配置 External Tools 执行 `make eval`。
+全量评估不要点 `Build Project`，而是配置 External Tools 执行 `make eval`。建议先跑 `imu_gesture_sim_check`，再跑正式数据集评估。
 
 1. 打开：
 
@@ -211,11 +325,60 @@ cd /home/segzix/Projects/xinyuan/imu_gesture
 make eval
 ```
 
+Python/C 算法仿真对比：
+
+```bash
+cd /home/segzix/Projects/xinyuan/imu_gesture
+make py-algo-compare-sim
+```
+
+正式数据集 Python/C 算法仿真全量对比，默认只输出汇总和 mismatch：
+
+```bash
+cd /home/segzix/Projects/xinyuan/imu_gesture
+make py-algo-compare-all
+```
+
+正式数据集 Python/C 算法仿真全量对比，逐文件输出：
+
+```bash
+cd /home/segzix/Projects/xinyuan/imu_gesture
+make py-algo-compare-all-verbose
+```
+
 强制重新编译：
 
 ```bash
 cd /home/segzix/Projects/xinyuan/imu_gesture
 make -B
+```
+
+生成 Python 合成数据：
+
+```bash
+cd /home/segzix/Projects/xinyuan/imu_gesture
+make sim
+```
+
+生成合成数据并查看 host 输出：
+
+```bash
+cd /home/segzix/Projects/xinyuan/imu_gesture
+make sim-run
+```
+
+生成合成数据并检查期望标签，推荐作为 smoke test：
+
+```bash
+cd /home/segzix/Projects/xinyuan/imu_gesture
+make sim-check
+```
+
+把合成数据接入现有分类统计：
+
+```bash
+cd /home/segzix/Projects/xinyuan/imu_gesture
+make eval DATA_DIR=build/simulated_dataset
 ```
 
 查看每个文件的详细运行输出：
@@ -232,18 +395,20 @@ cd /home/segzix/Projects/xinyuan/imu_gesture
 make clean
 ```
 
-## eval 与 run-all 的区别
+## sim-check、eval 与 run-all 的区别
 
 不需要先运行 `make run-all` 再运行 `make eval`。
 
+- `make sim-check`：生成 Python 合成数据并检查期望输出，适合改代码后的快速 smoke test。
 - `make eval`：跑完整数据集并输出各类别汇总统计，适合看最终通过情况。
 - `make run-all`：逐个运行所有 `.txt` 数据文件，输出每个文件的识别结果，适合排查具体样本。
 
 推荐使用方式：
 
 ```text
-平时看结果 -> make eval
-结果异常 -> make run-all
+改完代码先检查链路 -> make sim-check
+平时看正式结果 -> make eval
+正式结果异常 -> make run-all
 ```
 
 ## 单文件运行

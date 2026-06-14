@@ -1,9 +1,11 @@
 CC ?= gcc
 CFLAGS ?= -O2 -g -Wall -Wextra -Werror -std=c99
+PYTHON ?= python3
 PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 INCLUDES := -I$(PROJECT_ROOT)/include
 HOST_BIN := $(PROJECT_ROOT)/build/imu_gesture_host
 DATA_DIR ?= $(PROJECT_ROOT)/../VeriHealthi_IMU_Dataset
+SIM_DIR ?= $(PROJECT_ROOT)/build/simulated_dataset
 HOST_SRC := \
 	$(PROJECT_ROOT)/host/main_host.c \
 	$(PROJECT_ROOT)/src/algo_manager.c \
@@ -11,10 +13,36 @@ HOST_SRC := \
 	$(PROJECT_ROOT)/src/imu_dataset_runner.c \
 	$(PROJECT_ROOT)/src/gesture_algo.c \
 	$(PROJECT_ROOT)/src/imu_buffer.c
+SIM_SCRIPT := $(PROJECT_ROOT)/sim/simulate_gestures.py
+PY_ALGO_SIM_SCRIPT := $(PROJECT_ROOT)/sim/gesture_algo_sim.py
 
-.PHONY: all clean run run-all eval
+.PHONY: all help clean run run-all eval sim sim-run sim-check py-algo py-algo-compare py-algo-compare-sim py-algo-compare-all py-algo-compare-all-verbose
 
 all: $(HOST_BIN)
+
+help:
+	@printf 'IMU gesture host verification commands:\n'
+	@printf '  make                         Build build/imu_gesture_host\n'
+	@printf '  make run DATA=/path/file.txt Run one IMU text file\n'
+	@printf '  make run-all                 Run all txt files under DATA_DIR\n'
+	@printf '  make eval                    Evaluate DATA_DIR by class directories\n'
+	@printf '  make sim                     Generate simulated dataset into SIM_DIR\n'
+	@printf '  make sim-run                 Generate simulated data and run host output\n'
+	@printf '  make sim-check               Generate simulated data and verify expected labels\n'
+	@printf '  make py-algo DATA=/path/file.txt\n'
+	@printf '                               Run the Python mirror of gesture_algo.c\n'
+	@printf '  make py-algo-compare DATA=/path/file.txt\n'
+	@printf '                               Compare Python mirror output with C host output\n'
+	@printf '  make py-algo-compare-sim     Compare Python mirror with C host on SIM_DIR\n'
+	@printf '  make py-algo-compare-all     Compare Python mirror with C host on DATA_DIR, summary with class stats\n'
+	@printf '  make py-algo-compare-all-verbose\n'
+	@printf '                               Compare Python mirror with C host on DATA_DIR, per-file output\n'
+	@printf '  make eval DATA_DIR=build/simulated_dataset\n'
+	@printf '                               Evaluate generated simulated dataset\n'
+	@printf '\nDefaults:\n'
+	@printf '  DATA_DIR=%s\n' "$(DATA_DIR)"
+	@printf '  SIM_DIR=%s\n' "$(SIM_DIR)"
+	@printf '  PYTHON=%s\n' "$(PYTHON)"
 
 $(HOST_BIN): $(HOST_SRC)
 	@mkdir -p $(PROJECT_ROOT)/build
@@ -78,6 +106,38 @@ eval: $(HOST_BIN)
 		printf '%-7s files=%d correct_files=%d miss_or_fp_files=%d wrong_files=%d wrong_lines=%d accepted_pair_files=%d accepted_pair_lines=%d\n' \
 			"$$cls" "$$total" "$$correct" "$$miss_or_fp" "$$wrong_files" "$$wrong_lines" "$$accepted_pair_files" "$$accepted_pair_lines"; \
 	done
+
+sim:
+	$(PYTHON) $(SIM_SCRIPT) --output-dir "$(SIM_DIR)"
+
+sim-run: $(HOST_BIN)
+	$(PYTHON) $(SIM_SCRIPT) --output-dir "$(SIM_DIR)" --host-bin "$(HOST_BIN)" --run-host
+
+sim-check: $(HOST_BIN)
+	$(PYTHON) $(SIM_SCRIPT) --output-dir "$(SIM_DIR)" --host-bin "$(HOST_BIN)" --check
+
+py-algo:
+	@if [ -z "$(DATA)" ]; then \
+		printf 'Usage: make py-algo DATA=/path/to/imu.txt\n'; \
+		exit 1; \
+	fi
+	$(PYTHON) $(PY_ALGO_SIM_SCRIPT) $(DATA)
+
+py-algo-compare: $(HOST_BIN)
+	@if [ -z "$(DATA)" ]; then \
+		printf 'Usage: make py-algo-compare DATA=/path/to/imu.txt\n'; \
+		exit 1; \
+	fi
+	$(PYTHON) $(PY_ALGO_SIM_SCRIPT) --host-bin "$(HOST_BIN)" --compare-host $(DATA)
+
+py-algo-compare-sim: $(HOST_BIN) sim
+	$(PYTHON) $(PY_ALGO_SIM_SCRIPT) --dataset-dir "$(SIM_DIR)" --host-bin "$(HOST_BIN)" --compare-host
+
+py-algo-compare-all: $(HOST_BIN)
+	@$(PYTHON) $(PY_ALGO_SIM_SCRIPT) --dataset-dir "$(DATA_DIR)" --host-bin "$(HOST_BIN)" --compare-host --quiet
+
+py-algo-compare-all-verbose: $(HOST_BIN)
+	$(PYTHON) $(PY_ALGO_SIM_SCRIPT) --dataset-dir "$(DATA_DIR)" --host-bin "$(HOST_BIN)" --compare-host
 
 clean:
 	rm -rf $(PROJECT_ROOT)/build
