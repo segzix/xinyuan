@@ -7,6 +7,32 @@
 #define COOLDOWN_SAMPLES 100u
 #define EVAL_INTERVAL_SAMPLES 25u
 
+typedef struct WindowFeatures {
+    int16_t min_ax;
+    int16_t max_ax;
+    int16_t min_ay;
+    int16_t max_ay;
+    int16_t min_az;
+    int16_t max_az;
+    int16_t min_gx;
+    int16_t max_gx;
+    int16_t min_gy;
+    int16_t max_gy;
+    int16_t min_gz;
+    int16_t max_gz;
+    uint32_t accel_jerk_sum;
+    uint32_t gyro_energy_sum;
+    uint32_t peak_accel;
+    uint32_t peak_gyro;
+    uint32_t accel_range;
+    uint32_t gyro_range;
+    int32_t z_delta;
+    int32_t y_delta;
+    int32_t x_delta;
+    int32_t mean_az;
+    int32_t mean_ay;
+} WindowFeatures;
+
 static uint32_t iabs32(int32_t value)
 {
     if (value >= 0) {
@@ -18,6 +44,98 @@ static uint32_t iabs32(int32_t value)
 static uint32_t range16(int16_t min_value, int16_t max_value)
 {
     return (uint32_t)((int32_t)max_value - (int32_t)min_value);
+}
+
+static inline void update_min_max16(int16_t value, int16_t *min_value, int16_t *max_value)
+{
+    if (value < *min_value) {
+        *min_value = value;
+    }
+    if (value > *max_value) {
+        *max_value = value;
+    }
+}
+
+static void init_window_features(WindowFeatures *features, const ImuGyroAccelData *first_sample)
+{
+    memset(features, 0, sizeof(*features));
+    features->min_ax = features->max_ax = first_sample->ax;
+    features->min_ay = features->max_ay = first_sample->ay;
+    features->min_az = features->max_az = first_sample->az;
+    features->min_gx = features->max_gx = first_sample->gx;
+    features->min_gy = features->max_gy = first_sample->gy;
+    features->min_gz = features->max_gz = first_sample->gz;
+}
+
+static void update_window_features(WindowFeatures *features,
+                                   const ImuGyroAccelData *samples,
+                                   uint16_t index)
+{
+    uint32_t accel_abs;
+    uint32_t gyro_abs;
+
+    update_min_max16(samples[index].ax, &features->min_ax, &features->max_ax);
+    update_min_max16(samples[index].ay, &features->min_ay, &features->max_ay);
+    update_min_max16(samples[index].az, &features->min_az, &features->max_az);
+    update_min_max16(samples[index].gx, &features->min_gx, &features->max_gx);
+    update_min_max16(samples[index].gy, &features->min_gy, &features->max_gy);
+    update_min_max16(samples[index].gz, &features->min_gz, &features->max_gz);
+
+    if (index > 0u) {
+        features->accel_jerk_sum +=
+            (uint32_t)iabs32((int32_t)samples[index].ax - samples[index - 1u].ax);
+        features->accel_jerk_sum +=
+            (uint32_t)iabs32((int32_t)samples[index].ay - samples[index - 1u].ay);
+        features->accel_jerk_sum +=
+            (uint32_t)iabs32((int32_t)samples[index].az - samples[index - 1u].az);
+    }
+
+    accel_abs = iabs32(samples[index].ax) + iabs32(samples[index].ay)
+                + iabs32(samples[index].az);
+    gyro_abs = iabs32(samples[index].gx) + iabs32(samples[index].gy)
+               + iabs32(samples[index].gz);
+    if (accel_abs > features->peak_accel) {
+        features->peak_accel = accel_abs;
+    }
+    if (gyro_abs > features->peak_gyro) {
+        features->peak_gyro = gyro_abs;
+    }
+    features->gyro_energy_sum += gyro_abs;
+    features->mean_az += samples[index].az;
+    features->mean_ay += samples[index].ay;
+}
+
+static void finalize_window_features(WindowFeatures *features,
+                                     const ImuGyroAccelData *samples,
+                                     uint16_t count)
+{
+    features->accel_range = range16(features->min_ax, features->max_ax)
+                            + range16(features->min_ay, features->max_ay)
+                            + range16(features->min_az, features->max_az);
+    features->gyro_range = range16(features->min_gx, features->max_gx)
+                           + range16(features->min_gy, features->max_gy)
+                           + range16(features->min_gz, features->max_gz);
+    features->z_delta = (int32_t)samples[count - 1u].az - samples[0].az;
+    features->y_delta = (int32_t)samples[count - 1u].ay - samples[0].ay;
+    features->x_delta = (int32_t)samples[count - 1u].ax - samples[0].ax;
+    features->mean_az /= (int32_t)count;
+    features->mean_ay /= (int32_t)count;
+}
+
+static void compute_window_features(const ImuGyroAccelData *samples,
+                                    uint16_t count,
+                                    WindowFeatures *features)
+{
+    uint16_t i;
+
+    init_window_features(features, &samples[0]);
+
+    /* WINDOW_SAMPLES=100 keeps worst-case sums below uint32_t range. */
+    for (i = 0u; i < count; i++) {
+        update_window_features(features, samples, i);
+    }
+
+    finalize_window_features(features, samples, count);
 }
 
 const char *gesture_result_name(GestureResult result)
@@ -44,138 +162,74 @@ void gesture_algo_init(GestureAlgoContext *ctx)
     }
 }
 
+static void append_window_sample(GestureAlgoContext *ctx, const ImuGyroAccelData *sample)
+{
+    if (ctx->window_count < WINDOW_SAMPLES) {
+        ctx->window[ctx->window_count++] = *sample;
+        return;
+    }
+
+    memmove(&ctx->window[0], &ctx->window[1], (WINDOW_SAMPLES - 1u) * sizeof(ctx->window[0]));
+    ctx->window[WINDOW_SAMPLES - 1u] = *sample;
+}
+
+static void tick_classify_timers(GestureAlgoContext *ctx)
+{
+    if (ctx->cooldown_samples > 0u) {
+        ctx->cooldown_samples--;
+    }
+
+    if (ctx->eval_countdown > 0u) {
+        ctx->eval_countdown--;
+    }
+}
+
 static GestureResult classify_window(const ImuGyroAccelData *samples, uint16_t count)
 {
-    uint16_t i;
-    int16_t min_ax;
-    int16_t max_ax;
-    int16_t min_ay;
-    int16_t max_ay;
-    int16_t min_az;
-    int16_t max_az;
-    int16_t min_gx;
-    int16_t max_gx;
-    int16_t min_gy;
-    int16_t max_gy;
-    int16_t min_gz;
-    int16_t max_gz;
-    uint32_t accel_jerk_sum = 0u;
-    uint32_t gyro_energy_sum = 0u;
-    uint32_t peak_accel = 0u;
-    uint32_t peak_gyro = 0u;
-    uint32_t accel_range;
-    uint32_t gyro_range;
-    int32_t z_delta;
-    int32_t y_delta;
-    int32_t x_delta;
-    int32_t mean_az = 0;
-    int32_t mean_ay = 0;
+    WindowFeatures features;
 
     if (count < MIN_CLASSIFY_SAMPLES) {
         return GESTURE_OTHER;
     }
 
-    min_ax = max_ax = samples[0].ax;
-    min_ay = max_ay = samples[0].ay;
-    min_az = max_az = samples[0].az;
-    min_gx = max_gx = samples[0].gx;
-    min_gy = max_gy = samples[0].gy;
-    min_gz = max_gz = samples[0].gz;
-
-    /* WINDOW_SAMPLES=100 keeps worst-case sums below uint32_t range. */
-    for (i = 0u; i < count; i++) {
-        uint32_t accel_abs;
-        uint32_t gyro_abs;
-
-        if (samples[i].ax < min_ax) {
-            min_ax = samples[i].ax;
-        } else if (samples[i].ax > max_ax) {
-            max_ax = samples[i].ax;
-        }
-        if (samples[i].ay < min_ay) {
-            min_ay = samples[i].ay;
-        } else if (samples[i].ay > max_ay) {
-            max_ay = samples[i].ay;
-        }
-        if (samples[i].az < min_az) {
-            min_az = samples[i].az;
-        } else if (samples[i].az > max_az) {
-            max_az = samples[i].az;
-        }
-        if (samples[i].gx < min_gx) {
-            min_gx = samples[i].gx;
-        } else if (samples[i].gx > max_gx) {
-            max_gx = samples[i].gx;
-        }
-        if (samples[i].gy < min_gy) {
-            min_gy = samples[i].gy;
-        } else if (samples[i].gy > max_gy) {
-            max_gy = samples[i].gy;
-        }
-        if (samples[i].gz < min_gz) {
-            min_gz = samples[i].gz;
-        } else if (samples[i].gz > max_gz) {
-            max_gz = samples[i].gz;
-        }
-
-        accel_abs = iabs32(samples[i].ax) + iabs32(samples[i].ay) + iabs32(samples[i].az);
-        gyro_abs = iabs32(samples[i].gx) + iabs32(samples[i].gy) + iabs32(samples[i].gz);
-        if (accel_abs > peak_accel) {
-            peak_accel = accel_abs;
-        }
-        if (gyro_abs > peak_gyro) {
-            peak_gyro = gyro_abs;
-        }
-        gyro_energy_sum += gyro_abs;
-        mean_az += samples[i].az;
-        mean_ay += samples[i].ay;
-    }
-
-    for (i = 1u; i < count; i++) {
-        accel_jerk_sum += (uint32_t)iabs32((int32_t)samples[i].ax - samples[i - 1u].ax);
-        accel_jerk_sum += (uint32_t)iabs32((int32_t)samples[i].ay - samples[i - 1u].ay);
-        accel_jerk_sum += (uint32_t)iabs32((int32_t)samples[i].az - samples[i - 1u].az);
-    }
-
-    accel_range = range16(min_ax, max_ax) + range16(min_ay, max_ay) + range16(min_az, max_az);
-    gyro_range = range16(min_gx, max_gx) + range16(min_gy, max_gy) + range16(min_gz, max_gz);
-    z_delta = (int32_t)samples[count - 1u].az - samples[0].az;
-    y_delta = (int32_t)samples[count - 1u].ay - samples[0].ay;
-    x_delta = (int32_t)samples[count - 1u].ax - samples[0].ax;
-    mean_az /= (int32_t)count;
-    mean_ay /= (int32_t)count;
+    compute_window_features(samples, count, &features);
 
     /* up/down are whole-wrist rotations: high gyro energy and coherent y/z movement. */
-    if (gyro_energy_sum > 100000u && gyro_energy_sum < 280000u
-        && peak_gyro > 5000u && peak_gyro < 18000u
-        && gyro_range > 7000u && range16(min_ay, max_ay) > 5500u
-        && peak_accel < 18000u && iabs32(x_delta) < 4500u
-        && y_delta > 2800 && z_delta > 500) {
+    if (features.gyro_energy_sum > 100000u && features.gyro_energy_sum < 280000u
+        && features.peak_gyro > 5000u && features.peak_gyro < 18000u
+        && features.gyro_range > 7000u && range16(features.min_ay, features.max_ay) > 5500u
+        && features.peak_accel < 18000u && iabs32(features.x_delta) < 4500u
+        && features.y_delta > 2800 && features.z_delta > 500) {
         return GESTURE_UP;
     }
-    if (gyro_energy_sum > 100000u && gyro_energy_sum < 280000u
-        && peak_gyro > 5000u && peak_gyro < 18000u
-        && gyro_range > 7000u && range16(min_ay, max_ay) > 5500u
-        && peak_accel < 18000u && iabs32(x_delta) < 4500u
-        && y_delta < -2800 && z_delta < -500) {
+    if (features.gyro_energy_sum > 100000u && features.gyro_energy_sum < 280000u
+        && features.peak_gyro > 5000u && features.peak_gyro < 18000u
+        && features.gyro_range > 7000u && range16(features.min_ay, features.max_ay) > 5500u
+        && features.peak_accel < 18000u && iabs32(features.x_delta) < 4500u
+        && features.y_delta < -2800 && features.z_delta < -500) {
         return GESTURE_DOWN;
     }
 
     /* pinch/clench are detected only in the wrist-neutral posture seen in the dataset. */
-    if (mean_az < 2500 || mean_ay < -1800 || gyro_energy_sum > 60000u
-        || iabs32(y_delta) > 1000u || iabs32(z_delta) > 1000u) {
+    if (features.mean_az < 2500 || features.mean_ay < -1800
+        || features.gyro_energy_sum > 60000u || iabs32(features.y_delta) > 1000u
+        || iabs32(features.z_delta) > 1000u) {
         return GESTURE_OTHER;
     }
 
-    if (accel_range > 6500u && accel_range < 22000u
-        && gyro_range > 2800u && gyro_range < 9000u
-        && accel_jerk_sum > 32000u && peak_gyro > 1300u && peak_accel > 7800u) {
+    if (features.accel_range > 7000u && features.accel_range < 22000u
+        && features.gyro_range > 2800u && features.gyro_range < 9000u
+        && features.accel_jerk_sum > 35000u && features.peak_gyro > 1300u
+        && features.peak_gyro < 7000u && features.peak_accel > 8500u
+        && features.peak_accel * 2u > features.peak_gyro * 3u) {
         return GESTURE_CLENCH;
     }
-    if (accel_range > 1800u && accel_range < 5500u
-        && gyro_range > 900u && gyro_range < 3000u
-        && accel_jerk_sum > 9000u && accel_jerk_sum < 30000u
-        && peak_gyro > 450u && peak_gyro < 1600u && peak_accel < 8500u) {
+    if (features.accel_range > 1800u && features.accel_range < 5500u
+        && features.gyro_range > 900u && features.gyro_range < 3000u
+        && features.accel_jerk_sum > 9000u && features.accel_jerk_sum < 30000u
+        && features.gyro_energy_sum < 18000u
+        && features.peak_gyro > 450u && features.peak_gyro < 1600u
+        && features.peak_accel < 8500u) {
         return GESTURE_PINCH;
     }
 
@@ -194,20 +248,9 @@ GestureResult gesture_algo_process(GestureAlgoContext *ctx,
     }
 
     for (i = 0u; i < count; i++) {
-        if (ctx->window_count < WINDOW_SAMPLES) {
-            ctx->window[ctx->window_count++] = samples[i];
-        } else {
-            memmove(&ctx->window[0], &ctx->window[1], (WINDOW_SAMPLES - 1u) * sizeof(ctx->window[0]));
-            ctx->window[WINDOW_SAMPLES - 1u] = samples[i];
-        }
+        append_window_sample(ctx, &samples[i]);
+        tick_classify_timers(ctx);
 
-        if (ctx->cooldown_samples > 0u) {
-            ctx->cooldown_samples--;
-        }
-
-        if (ctx->eval_countdown > 0u) {
-            ctx->eval_countdown--;
-        }
         if (result == GESTURE_OTHER && ctx->window_count >= MIN_CLASSIFY_SAMPLES
             && ctx->cooldown_samples == 0u && ctx->eval_countdown == 0u) {
             result = classify_window(ctx->window, ctx->window_count);

@@ -1,0 +1,188 @@
+                           VeriHealthi QEMU SDK 发布说明
+
+
+
+
+      VeriHealthi QEMU SDK 发布说明
+
+
+              REV: 20260602
+               02/June/2026
+
+
+
+
+         芯原微电子（上海）股份有限公司
+
+核对:
+
+批准:
+
+
+
+                                                           Page 1 of 6
+                   VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                                                             VeriHealthi QEMU SDK 发布说明
+
+
+
+法律声明
+COPYRIGHT INFORMATION
+
+This document contains proprietary information of VeriSilicon Microelectronics (Shanghai) Co., Ltd.
+VeriSilicon reserves the right to make changes to any products herein at any time without notice.
+VeriSilicon does not assume any responsibility or liability arising out of the application or use of any
+product described herein, except as expressly agreed to in writing by VeriSilicon; nor does the purchase
+or use of a product from VeriSilicon convey a license under any patent rights, copyrights, trademark
+rights, or any other of the intellectual property rights of VeriSilicon or third parties.
+
+
+
+DISCLOSURE/RE-DISTRIBUTION LIMITATIONS
+
+The information contained herein is not to be used by or disclosed to third parties without the express
+written permission of an officer of VeriSilicon Microelectronics (Shanghai) Co., Ltd.
+
+(VeriSilicon Distribution Level D: CONFIDENTIAL – NOT FOR REDISTRIBUTION).
+
+
+
+TRADEMARK ACKNOWLEDGMENT
+
+VeriSilicon® and the VeriSilicon logo design are the trademarks or the registered trademarks of
+VeriSilicon Microelectronics (Shanghai) Co., Ltd. All other brand and product names may be trademarks
+of their respective companies.
+
+For our current distributors, sales offices, design resource centers, and product information, visit our
+web site located at https://www.verisilicon.com.
+
+VeriSilicon Proprietary. Copyright © 2026 by VeriSilicon Microelectronics (Shanghai) Co., Ltd. All rights
+reserved.
+
+
+
+
+                                                                                           Page 2 of 6
+                                                   VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                                           VeriHealthi QEMU SDK 发布说明
+
+
+
+文档修订历史
+本节记录文档版本修订历史。
+
+注:本文档不需要对每个补丁或次要修订进行更新。 本文档中的内容在一系列的修订中趋于稳定。
+
+  版本         日期          说明
+  20260602   2026.6.2    VeriHealthi QEMU SDK，VESC2026 大赛初赛用 SDK
+  20260510   2026.5.10   VeriHealthi QEMU SDK，VESC2026 大赛课程作业用 SDK
+
+
+
+
+                                                                           Page 3 of 6
+                                   VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                                                                               VeriHealthi QEMU SDK 发布说明
+
+
+
+目录
+
+ 法律声明 ........................................................................................................................................ 2
+ 文档修订历史 ................................................................................................................................ 3
+ 1. 概述 ........................................................................................................................................ 5
+ 2. 术语 ........................................................................................................................................ 5
+ 3. 交付项 .................................................................................................................................... 5
+ 4. 使用手册 ................................................................................................................................ 5
+ 5. 已知问题与限制 .................................................................................................................... 6
+ 6. 免责声明 ................................................................................................................................ 6
+ 7. 与之前版本的区别................................................................................................................. 6
+
+
+
+
+                                                                                                         Page 4 of 6
+                                                                 VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                                                  VeriHealthi QEMU SDK 发布说明
+
+
+
+1.       概述
+本次发布内容包括软件大赛初赛用的 VeriHealthi QEMU SDK 所需参考文档，SDK 压缩包，算法
+所需参考文档和 IMU 数据集。
+
+
+2.       术语
+下表列出本次发布中专业术语的参考释义。
+ 术语                                  描述
+ QEMU                                Quick Emulator，虚拟操作系统模拟器
+ SDK                                 Software Development Kit，软件开发工具包
+ IMU                                 Inertial Measurement Unit，惯性测量单元
+
+
+
+3.       交付项
+本次发布的内容如下表所示。
+ 交付项                                               描述
+ VeriHealthi QEMU SDK 发布说明 20260602.pdf            VeriHealthi QEMU SDK 发布说明
+ VeriHealthi_QEMU_SDK_v3.7.zip                     VeriHealthi QEMU SDK 压缩包
+ VeriHealthi Embedded SDK 开发手册-VESC2026-           VeriHealthi Embedded SDK 开发手册
+ V2.0.pdf
+ VeriHealthi_IMU_Dataset.zip                       算法 IMU 数据集
+ VeriHealthi 算法开发手册-VESC2026-V1.0.pdf              VeriHealthi 算法开发手册
+
+
+
+4.       使用手册
+    VeriHealthi QEMU SDK 是 VeriHealthi Embedded SDK 的 QEMU 版本分支，两者支持相同
+     的 OS 接口和功能，是一种基于 Nuclei Studio IDE 的、不依赖硬件的软件开发工具包，支持
+     直接在 IDE 运行。
+        推荐在 Windows 10 及以上的操作系统使用 Nuclei Studio IDE 2024.02 进行开发，Nucl
+         ei Studio IDE 下载地址：https://download.nucleisys.com/upload/files/nucleistudio/Nucle
+         iStudio_IDE_202402_DEV-win64.zip。
+        QEMU 版本包含支持跟 SoC 相同的 CPU，系统 timer，RAM 和保存及运行代码用的 flas
+         h 空间（不支持 flash 读写，只支持代码执行），不支持 I2C/SPI/DMA/WDT/ADC/DAC/I2
+         S/PDM/CRC 等硬件接口。
+        VeriHealthi QEMU SDK 工程需解压 VeriHealthi_QEMU_SDK_v3.7.zip，解压后将工程
+         导入到 Nuclei Studio IDE 中，具体步骤及软件使用方法请参考 VeriHealthi Embedded
+         SDK 开发手册-VESC2026-V2.0.pdf，SDK 接口文档最新版本请通过大赛官网访问 https://
+         vesc.verisilicon.com/sdk/Embedded/index.html。
+    VeriHealthi_IMU_Dataset.zip 压缩包包含了算法的 IMU 数据集，用于算法的训练和测试，具
+     体使用方法请参考 VeriHealthi 算法开发手册-VESC2026-V1.0.pdf。
+
+
+
+                                                                                  Page 5 of 6
+                                          VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                                               VeriHealthi QEMU SDK 发布说明
+
+
+
+5.     已知问题与限制
+    VeriHealthi QEMU SDK 仅用于 QEMU 平台，不能用于实际硬件平台，基于 QEMU SDK 开
+     发的软件将来可以导入到 VeriHealthi Embedded SDK，实现在实际硬件平台上运行。
+    VeriHealthi QEMU SDK 不支持 fopen，请通过 const 数组的方式导入数据。
+    VeriHealthi QEMU SDK RAM 空间有限，添加大数组的时候需要加上 const 属性将数组分配
+     到 Flash 空间。
+    大赛平台的 SoC 包含了单精度 FPU，使用 double 类型会降低运算效率，请尽量使用 float 类
+     型。
+
+
+6.     免责声明
+无
+
+
+7.     与之前版本的区别
+VeriHealthi QEMU SDK 20260602 发布   2026/6/2
+    VESC2026 大赛初赛用 SDK
+
+
+VeriHealthi QEMU SDK 20260510 发布   2026/5/10
+    VESC2026 大赛课程作业用 SDK
+
+
+
+
+                                                                             Page 6 of 6
+                                     VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+

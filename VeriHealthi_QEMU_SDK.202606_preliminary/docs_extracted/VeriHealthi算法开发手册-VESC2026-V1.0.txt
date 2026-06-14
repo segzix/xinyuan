@@ -1,0 +1,348 @@
+                 VeriHealthi 算法开发手册(VESC2026)
+
+
+
+
+      VeriHealthi 算法开发手册
+             (VESC2026)
+
+
+             REV: 1.0
+
+
+
+
+      芯原微电子（上海）股份有限公司
+
+核对:
+
+批准:
+
+
+
+                                                       Page 1 of 10
+                VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                                                    VeriHealthi 算法开发手册(VESC2026)
+
+
+
+法律声明
+COPYRIGHT INFORMATION
+
+This document contains proprietary information of VeriSilicon Microelectronics (Shanghai) Co., Ltd.
+VeriSilicon reserves the right to make changes to any products herein at any time without notice.
+VeriSilicon does not assume any responsibility or liability arising out of the application or use of any
+product described herein, except as expressly agreed to in writing by VeriSilicon; nor does the
+purchase or use of a product from VeriSilicon convey a license under any patent rights, copyrights,
+trademark rights, or any other of the intellectual property rights of VeriSilicon or third parties.
+
+
+
+DISCLOSURE/RE-DISTRIBUTION LIMITATIONS
+
+The information contained herein is not to be used by or disclosed to third parties without the
+express written permission of an officer of VeriSilicon Microelectronics (Shanghai) Co., Ltd.
+
+(VeriSilicon Distribution Level D: CONFIDENTIAL – NOT FOR REDISTRIBUTION).
+
+
+
+TRADEMARK ACKNOWLEDGMENT
+
+VeriSilicon® and the VeriSilicon logo design are the trademarks or the registered trademarks of
+VeriSilicon Microelectronics (Shanghai) Co., Ltd. All other brand and product names may be trademarks
+of their respective companies.
+
+For our current distributors, sales offices, design resource centers, and product information, visit our
+web site located at https://www.verisilicon.com.
+
+VeriSilicon Proprietary. Copyright © 2026 by VeriSilicon Microelectronics (Shanghai) Co., Ltd. All rights
+reserved.
+
+
+
+
+                                                                                          Page 2 of 10
+                                                   VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                            VeriHealthi 算法开发手册(VESC2026)
+
+
+
+文档修订历史
+本节记录文档版本修订历史。
+
+注:本文档不需要对每个补丁或次要修订进行更新。 本文档中的内容在一系列的修订中趋于稳定。
+
+ 版本    日期         说明
+ 1.0   2026.6.2   VeriHealthi 算法开发手册-VESC2026-V1.0，介绍了初赛算法开发
+                  相关说明
+
+
+
+
+                                                                  Page 3 of 10
+                           VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                                                                       VeriHealthi 算法开发手册(VESC2026)
+
+
+
+目录
+
+ 法律声明 ........................................................................................................................................... 2
+ 文档修订历史 ...................................................................................................................................3
+ 1. 概述 ...........................................................................................................................................5
+ 2. 数据集概述 ...............................................................................................................................5
+ 3. 数据集文件格式说明 ...............................................................................................................5
+ 4. SDK 中的算法输入数据说明 ................................................................................................. 6
+ 5. SDK 中的算法结果输出格式要求 ......................................................................................... 7
+ 6. 算法评价指标说明 ...................................................................................................................7
+ 附录 ................................................................................................................................................... 8
+
+
+
+
+                                                                                                            Page 4 of 10
+                                                                     VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                                     VeriHealthi 算法开发手册(VESC2026)
+
+
+
+1. 概述
+     本文档包含用于算法开发的数据集、用于算法验证的 SDK 数据以及算法评价指标的介绍。
+     数据集的数据位于 VeriHealthi_IMU_Dataset.zip 中，该数据集可用于算法开发。SDK 数据位于
+  QEMU SDK 平台中，用于最终算法的功能验证。
+
+
+2. 数据集概述
+     软件大赛初赛的算法题目为基于 IMU 传感器的手势识别。主办方准备了用于算法开发的数据集，
+  位于压缩包 VeriHealthi_IMU_Dataset.zip 中，包括“双指互点”、“握拳”、“抬腕”、“放下”
+  和“其它”共五个手势类别的数据，每个手势类别的具体描述如下：
+           双指互点（pinch）：单手大拇指和食指互相点击，两个手指必须捏到一起，动作需要有
+            力度，动作在 1 秒以内做完。
+           握拳（clench）：单手握拳，握拳时手必须握紧，动作在 1 秒以内做完。
+           抬腕（up）（即看手表的姿势）：单手自然抬起，手腕必须包含翻转动作，不能仅平移
+            手腕看手表；抬起后需停顿 0.5 秒及以上。
+           放下（down）（即看手表后放下手臂的姿势）：抬腕的反向动作，即保持抬起手臂状态
+            0.5 秒及以上后，自然放下手臂，手腕必须包含翻转动作。
+           其它（others）：非以上 4 种手势，均属于其它手势。数据集中的其它动作主要为鼓掌、
+            走路、跑步、静止等动作。
+     压缩包中还包含 gesture_example.mp4 文件，为各类手势动作的视频演示，供参考使用。初赛
+  阶段，上述五类动作的具体姿势仅需考虑视频中所展示的这几种姿势。
+
+
+3. 数据集文件格式说明
+     压缩包 VeriHealthi_IMU_Dataset.zip 解压后可得到按类别命名的子目录，包括 pinch、clench、
+  up、down、others。每个目录下包含 IMU 数据文件和标签文件两种类型。
+     IMU 数据文件为.txt 格式，包含了 6 轴 50Hz 采样的 IMU 原始数据。文件格式如下：前 5 行为数
+  据头，包含设备信息、采集时间、采样率、数据精度、轴数等元数据；之后为 IMU 数据，每 7 个数
+  值为一组，顺序依次为 X 轴陀螺仪、Y 轴陀螺仪、Z 轴陀螺仪、X 轴加速度计、Y 轴加速度计、Z 轴
+  加速度计、调试数据，其中调试数据无需使用。加速度计量程为±8G，分辨率为 4096/1G，即一个
+  重力加速度对应数值 4096；陀螺仪量程为±2000 度/秒，分辨率为 16.4/(1 度/秒）。
+     标签文件为.csv 格式，与 IMU 文件一一对应，内容格式为时间（秒）和手势类别两列。其中每
+  个 txt 文件的开始时间为 0 秒。例如，IMU 文件 IMU_clench_left_2026_05_26_14_23_39_ID0.txt
+  （命名遵照“设备_手势类别_左/右手_时间_用户 ID”）对应的标签文件为 clench_left_2026_05_2
+  6_14_23_39_ID0.csv，其中，标签文件中的第一个标签“8.340000,clench”表示在 8.34 秒处有一
+  个握拳动作，后续标签同理，数据和标签示意图见图 1 和图 2。
+
+
+
+
+                                                                           Page 5 of 10
+                                    VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                                     VeriHealthi 算法开发手册(VESC2026)
+
+
+
+
+                             图 1：数据和标签示意图
+
+
+
+
+                              图 2：标签文件示意图
+
+
+    使用数据集时需注意以下几点：
+         该数据集仅供算法开发使用，不作为最终测评依据。选手在开发过程中，可自行选择评
+          价指标来评估算法。最终的正式测评将由主办方通过 SDK，在未公开数据上统一进行，
+          具体评估方式详见后文。
+         数据集中相邻手势动作的时间间隔一般在 0.5-5 秒范围内。
+         文件名中包含 updown 的数据中同时包含抬腕和放下动作，基本成对出现，因此 up 和 d
+          own 目录下的 txt 文件相同但 csv 标签文件不同。
+         标签数据中的标签位置为该动作出现的大致时间点，未必是动作的起始、中心或结束位
+          置，不同的起始点和结束点选取会对手势分类结果产生不同影响，建议选手通过绘图观
+          察数据，自行分析并截取合适的数据使用。
+         “其它”类别的数据只有 txt 原始文件没有 csv 标签，因为整个文件都是负样本，选手可
+          自行截取并使用。
+
+
+4. SDK 中的算法输入数据说明
+    最终提交的完整工程文件中，算法输入数据应从 SDK 读取，其采样率、位宽等格式参考初赛 S
+ DK 开发手册：VeriHealthi Embedded SDK 开发手册-VESC2026-V2.0。SDK 中数据的动作类别与
+ 采集标准与 VeriHealthi_IMU_Dataset.zip 一致。
+                                                                           Page 6 of 10
+                                    VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                                VeriHealthi 算法开发手册(VESC2026)
+
+
+
+5. SDK 中的算法结果输出格式要求
+   手势识别算法输出结果格式要求：
+           输出结果的打印格式统一为“时间, 手势结果”（多个结果换行输出）。
+           当识别到双指互点、握拳、抬腕、放下手势时，进行结果打印，四种手势的打印内容
+            分别为“pinch”、“clench”、“up”、“down”。
+           当识别到其它动作时，不进行结果打印。
+           打印结果时，应同步统计当前算法累计已处理的 IMU 数据量，并根据实际采样率、通
+            道数、数据位宽转换为时间，以毫秒显示。
+           例如，当前处理数据量为 700 字节，假设采样率为 50Hz、通道数为 7、位宽为 2 字节
+            （int16 类型，实际配置以初赛 SDK 开发手册为准），则当前处理了 700/2/7/50*100
+            0=1000 毫秒的数据；假设当前识别结果为“clench”；则应打印“1000ms, clench”
+                                                              。
+
+
+6. 算法评价指标说明
+   算法在开发阶段使用 Python 语言进行仿真，Matlab 等语言也可使用，但建议统一使用 Python
+ 语言。最终提交的工程文件需用 C/C++语言编写，并且能在 QEMU SDK 中编译运行。提供给参赛
+ 选手的 SDK 中已经包含一组数据，其标签见附录。在对提交的工程进行测评时，主办方将使用未公
+ 开的数据，通过 SDK 对参赛选手的算法进行评估。SDK 中用于测评的数据，可以保证相邻动作的标
+ 签的时间间隔始终大于 2 秒。
+   每次手势动作将对应一个有效匹配时间窗口，窗口起点为当前标签时间戳往前 0.3 秒，窗口终点
+ 为下一个标签时间戳往前 0.3 秒，若为最后一个手势动作，则窗口终点为文件结尾。单次手势动作应
+ 当只产生一个预测结果，若产生多个预测结果，该窗口内第一个与该标签类别相同的预测结果，作
+ 为正确预测结果，该窗口内的其余预测结果，均被视为错误预测结果。
+   主办方将围绕准确性、实时性、资源消耗以及代码和文档的完成情况对算法进行综合评估。
+   其中评估准确性的指标包括准确率、召回率、精确率、F1 分数和 F1 分数的宏平均，各指标定
+ 义如下：
+           准确率：所有预测结果中，正确预测的样本数占总预测样本数的比例。
+           召回率：所有真实的正样本中，被正确预测出的比例。
+           精确率：所有被预测为正样本的结果中，实际为正样本的比例。
+           F1 分数：召回率和精确率的调和平均数，用于综合评估模型的性能，计算公式为：F
+            1=2×精确率×召回率/（精确率+召回率）。
+           F1 分数的宏平均：先分别计算每个手势类别的 F1 分数，然后对所有类别的 F1 分数
+            取算术平均。该指标平等对待每一个类别，不受类别样本数量差异的影响。
+   实时性的评价指标为手势动作结束到上层输出结果的总延迟，单个手势动作的延迟的详细计算
+ 规则如下：
+           每次手势动作将对应一个有效匹配时间窗口，窗口起点为当前标签时间戳往前 0.3 秒，
+            窗口终点为下一个标签时间戳往前 0.3 秒，若为最后一个手势动作，则窗口终点为文
+            件结尾。
+           在该窗口内的正确预测结果将被用于计算实时性。为了方便统一测评，预测延迟计算
+            方式为上层输出结果的时间点减去当前动作标签标注的时间点。
+   主办方将对 5 种手势各自的准确率、召回率、精确率和 F1 分数划定及格线，并对所有指标均达
+ 到及格线的算法，按照 F1 分数的宏平均指标进行排名，实时性、资源消耗以及代码和文档完成情况
+ 将作为额外加分项，计入总分并影响排名。
+
+                                                                      Page 7 of 10
+                               VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                      VeriHealthi 算法开发手册(VESC2026)
+
+
+
+附录
+
+SDK 数据的标签如下所示，包含两列，分别为时间戳（秒）和类别：
+    event_time_s,label
+    3.940000,pinch
+    6.580000,pinch
+    9.840000,pinch
+    13.060000,pinch
+    15.900000,pinch
+    20.100000,pinch
+    24.560000,pinch
+    28.320000,pinch
+    32.400000,pinch
+    36.380000,pinch
+    40.860000,pinch
+    44.440000,pinch
+    48.560000,pinch
+    52.300000,pinch
+    56.260000,pinch
+    60.600000,pinch
+    64.440000,pinch
+    68.360000,pinch
+    72.220000,pinch
+    75.300000,pinch
+    78.800000,pinch
+    82.180000,pinch
+    85.400000,pinch
+    88.800000,pinch
+    100.060000,clench
+    104.200000,clench
+    109.220000,clench
+    113.780000,clench
+    119.020000,clench
+    123.940000,clench
+    128.900000,clench
+    133.980000,clench
+    139.220000,clench
+    143.780000,clench
+    149.440000,clench
+    155.100000,clench
+    161.020000,clench
+    166.120000,clench
+    170.660000,clench
+    174.960000,clench
+                                                            Page 8 of 10
+                     VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                     VeriHealthi 算法开发手册(VESC2026)
+
+
+179.900000,clench
+184.660000,clench
+189.800000,clench
+194.280000,clench
+198.460000,clench
+205.920000,up
+209.380000,down
+213.320000,up
+217.060000,down
+221.280000,up
+224.980000,down
+229.060000,up
+232.980000,down
+237.260000,up
+242.380000,down
+248.000000,up
+252.160000,down
+258.079000,up
+262.700000,down
+268.360000,up
+272.600000,down
+277.540000,up
+282.580000,down
+286.840000,up
+290.600000,down
+295.380000,up
+300.600000,down
+308.280000,up
+313.120000,down
+318.160000,up
+321.700000,down
+325.780000,up
+329.720000,down
+335.160000,up
+338.700000,down
+343.200000,up
+346.840000,down
+351.100000,up
+355.060000,down
+358.940000,up
+364.020000,down
+369.700000,up
+373.200000,down
+381.280000,up
+
+                                                           Page 9 of 10
+                    VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+                   VeriHealthi 算法开发手册(VESC2026)
+
+
+385.440000,down
+392.640000,up
+395.520000,down
+
+
+
+
+                                                        Page 10 of 10
+                  VERISILICON CONFIDENTIAL-NOT FOR REDISTRIBUTION
+

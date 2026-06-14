@@ -25,6 +25,12 @@ static void update_first_320000_bytes_crc(ImuDatasetRunner *runner, const ImuGyr
     }
 }
 
+static void process_ready_block(ImuDatasetRunner *runner, const ImuBlock *ready_block)
+{
+    algo_manager_process(&runner->manager, ready_block);
+    imu_buffer_release(&runner->buffer, ready_block);
+}
+
 void imu_dataset_runner_init(ImuDatasetRunner *runner,
                              AlgoGestureCallback gesture_callback,
                              void *gesture_user_data,
@@ -56,8 +62,7 @@ void imu_dataset_runner_process_sample(ImuDatasetRunner *runner, const ImuGyroAc
 
     update_first_320000_bytes_crc(runner, sample);
     if (imu_buffer_push(&runner->buffer, sample, &ready_block)) {
-        algo_manager_process(&runner->manager, &ready_block);
-        imu_buffer_release(&runner->buffer, &ready_block);
+        process_ready_block(runner, &ready_block);
     }
 }
 
@@ -70,8 +75,7 @@ void imu_dataset_runner_finish(ImuDatasetRunner *runner)
     }
 
     if (imu_buffer_flush(&runner->buffer, &ready_block)) {
-        algo_manager_process(&runner->manager, &ready_block);
-        imu_buffer_release(&runner->buffer, &ready_block);
+        process_ready_block(runner, &ready_block);
     }
 
     if (!runner->crc_printed && runner->crc_pending_callback != NULL) {

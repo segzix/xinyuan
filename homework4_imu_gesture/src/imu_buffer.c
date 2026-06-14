@@ -9,6 +9,23 @@ void imu_buffer_init(ImuBuffer *buffer)
     }
 }
 
+static void imu_buffer_prepare_ready_block(ImuBufferBlock *block)
+{
+    block->ready = true;
+    block->block.samples = block->samples;
+    block->block.count = block->fill_count;
+    block->block.byte_count = (uint32_t)block->fill_count * IMU_GESTURE_SAMPLE_BYTES;
+}
+
+static void imu_buffer_reset_block(ImuBufferBlock *block)
+{
+    block->fill_count = 0u;
+    block->ready = false;
+    block->block.samples = NULL;
+    block->block.count = 0u;
+    block->block.byte_count = 0u;
+}
+
 bool imu_buffer_push(ImuBuffer *buffer, const ImuGyroAccelData *sample, ImuBlock *ready_block)
 {
     ImuBufferBlock *block;
@@ -28,10 +45,7 @@ bool imu_buffer_push(ImuBuffer *buffer, const ImuGyroAccelData *sample, ImuBlock
         return false;
     }
 
-    block->ready = true;
-    block->block.samples = block->samples;
-    block->block.count = block->fill_count;
-    block->block.byte_count = (uint32_t)block->fill_count * IMU_GESTURE_SAMPLE_BYTES;
+    imu_buffer_prepare_ready_block(block);
     if (ready_block != NULL) {
         *ready_block = block->block;
     }
@@ -53,10 +67,7 @@ bool imu_buffer_flush(ImuBuffer *buffer, ImuBlock *ready_block)
         return false;
     }
 
-    block->ready = true;
-    block->block.samples = block->samples;
-    block->block.count = block->fill_count;
-    block->block.byte_count = (uint32_t)block->fill_count * IMU_GESTURE_SAMPLE_BYTES;
+    imu_buffer_prepare_ready_block(block);
     *ready_block = block->block;
     return true;
 }
@@ -92,11 +103,7 @@ void imu_buffer_release(ImuBuffer *buffer, const ImuBlock *block)
         ImuBufferBlock *candidate = &buffer->blocks[i];
 
         if (candidate->samples == block->samples) {
-            candidate->fill_count = 0u;
-            candidate->ready = false;
-            candidate->block.samples = NULL;
-            candidate->block.count = 0u;
-            candidate->block.byte_count = 0u;
+            imu_buffer_reset_block(candidate);
             return;
         }
     }
